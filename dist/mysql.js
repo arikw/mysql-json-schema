@@ -1,5 +1,7 @@
 'use strict';
 
+var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
+
 var _mysql = require('mysql');
 
 var _mysql2 = _interopRequireDefault(_mysql);
@@ -13,6 +15,8 @@ var _lodash = require('lodash');
 var _lodash2 = _interopRequireDefault(_lodash);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
 
 var GetSchema = function GetSchema(connection) {
     var schema = { type: 'mysql', tables: {} };
@@ -42,38 +46,34 @@ var GetSchema = function GetSchema(connection) {
 var GetTableList = function GetTableList(connection) {
     var tables = [];
     var sqlTables = ' SELECT * FROM information_schema.tables where table_schema = \'' + connection.config.database + '\' ';
-    return new Promise(function (resolve, reject) {
-        connection.query(sqlTables, function (err, respTables) {
-            if (err) {
-                reject(err);
-            }
-            respTables.forEach(function (value, index, array) {
-                tables.push(value.TABLE_NAME);
-            });
-            resolve(tables);
+    return connection.query(sqlTables).then(function (_ref) {
+        var _ref2 = _slicedToArray(_ref, 1),
+            respTables = _ref2[0];
+
+        respTables.forEach(function (value, index, array) {
+            tables.push(value.TABLE_NAME);
         });
+        return tables;
     });
 };
 
 var GetFieldsFromTable = function GetFieldsFromTable(connection, table) {
     var fields = [];
-    return new Promise(function (resolve, reject) {
-        connection.query('desc ' + table, function (err, rows) {
-            if (err) {
-                reject(err);
-            }
-            rows.forEach(function (value, index, array) {
-                var Field = value.Field,
-                    Type = value.Type,
-                    Null = value.Null,
-                    Key = value.Key,
-                    Default = value.Default,
-                    Extra = value.Extra; // Extract info
+    return connection.query('desc ' + table).then(function (_ref3) {
+        var _ref4 = _slicedToArray(_ref3, 1),
+            rows = _ref4[0];
 
-                fields.push({ Field: Field, Type: Type, Null: Null === 'YES', Key: Key, Default: Default, Extra: Extra });
-            });
-            resolve(fields);
+        rows.forEach(function (value, index, array) {
+            var Field = value.Field,
+                Type = value.Type,
+                Null = value.Null,
+                Key = value.Key,
+                Default = value.Default,
+                Extra = value.Extra; // Extract info
+
+            fields.push({ Field: Field, Type: Type, Null: Null === 'YES', Key: Key, Default: Default, Extra: Extra });
         });
+        return fields;
     });
 };
 
@@ -94,14 +94,7 @@ var CreateConnectionAsync = function CreateConnectionAsync() {
     var args = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
     var connection = CreateConnection(args);
-    return new Promise(function (resolve, reject) {
-        connection.connect(function (err) {
-            if (err) {
-                return reject(err);
-            }
-            resolve(connection);
-        });
-    });
+    return connection.connect();
 };
 
 var AddRelationsToSchema = function AddRelationsToSchema(connection, schema) {
@@ -162,23 +155,21 @@ var GetRelationsFromTable = function GetRelationsFromTable(connection, table) {
     var sqlRelaciones = ' SELECT  TABLE_SCHEMA as db, \n     TABLE_NAME as t1,\n     COLUMN_NAME as t1Field,\n      REFERENCED_TABLE_SCHEMA as db2,\n      REFERENCED_TABLE_NAME as t2,\n      REFERENCED_COLUMN_NAME as t2Field \n    FROM \n      INFORMATION_SCHEMA.KEY_COLUMN_USAGE \n    WHERE \n      TABLE_SCHEMA = SCHEMA()\n      AND REFERENCED_TABLE_NAME IS NOT NULL \n     and (TABLE_NAME = \'' + table + '\');'; // and (REFERENCED_TABLE_NAME = '${table}');`
 
     var relations = [];
-    return new Promise(function (resolve, reject) {
-        connection.query(sqlRelaciones, function (err, relationsResp) {
-            if (err) {
-                reject(err);
-            }
-            relationsResp.forEach(function (value, index, array) {
-                var db = value.db,
-                    t1 = value.t1,
-                    t1Field = value.t1Field,
-                    db2 = value.db2,
-                    t2 = value.t2,
-                    t2Field = value.t2Field; // Extract info
+    return connection.query(sqlRelaciones).then(function (_ref5) {
+        var _ref6 = _slicedToArray(_ref5, 1),
+            relationsResp = _ref6[0];
 
-                relations.push({ localField: t1Field, foreignTable: t2, foreignField: t2Field });
-            });
-            resolve(relations);
+        relationsResp.forEach(function (value, index, array) {
+            var db = value.db,
+                t1 = value.t1,
+                t1Field = value.t1Field,
+                db2 = value.db2,
+                t2 = value.t2,
+                t2Field = value.t2Field; // Extract info
+
+            relations.push({ localField: t1Field, foreignTable: t2, foreignField: t2Field });
         });
+        return relations;
     });
 };
 
@@ -186,23 +177,21 @@ var GetRelationsToTable = function GetRelationsToTable(connection, table) {
     var sqlRelaciones = ' SELECT  TABLE_SCHEMA as db, \n     TABLE_NAME as t1,\n     COLUMN_NAME as t1Field,\n      REFERENCED_TABLE_SCHEMA as db2,\n      REFERENCED_TABLE_NAME as t2,\n      REFERENCED_COLUMN_NAME as t2Field \n    FROM \n      INFORMATION_SCHEMA.KEY_COLUMN_USAGE \n    WHERE \n      TABLE_SCHEMA = SCHEMA()\n      AND REFERENCED_TABLE_NAME IS NOT NULL \n     and (REFERENCED_TABLE_NAME = \'' + table + '\');';
 
     var relations = [];
-    return new Promise(function (resolve, reject) {
-        connection.query(sqlRelaciones, function (err, relationsResp) {
-            if (err) {
-                reject(err);
-            }
-            relationsResp.forEach(function (value, index, array) {
-                var db = value.db,
-                    t1 = value.t1,
-                    t1Field = value.t1Field,
-                    db2 = value.db2,
-                    t2 = value.t2,
-                    t2Field = value.t2Field; // Extract info
+    return connection.query(sqlRelaciones).then(function (_ref7) {
+        var _ref8 = _slicedToArray(_ref7, 1),
+            relationsResp = _ref8[0];
 
-                relations.push({ localField: t2Field, foreignTable: t1, foreignField: t1Field });
-            });
-            resolve(relations);
+        relationsResp.forEach(function (value, index, array) {
+            var db = value.db,
+                t1 = value.t1,
+                t1Field = value.t1Field,
+                db2 = value.db2,
+                t2 = value.t2,
+                t2Field = value.t2Field; // Extract info
+
+            relations.push({ localField: t2Field, foreignTable: t1, foreignField: t1Field });
         });
+        return relations;
     });
 };
 
@@ -237,92 +226,243 @@ var GetSchemaWithRelationsByFieldNames = function GetSchemaWithRelationsByFieldN
     });
 };
 
-var ExportSchemaToFiles = function ExportSchemaToFiles() {
-    var args = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+var ExportSchemaToFiles = function () {
+    var _ref9 = _asyncToGenerator(regeneratorRuntime.mark(function _callee4() {
+        var args = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+        var connection;
+        return regeneratorRuntime.wrap(function _callee4$(_context4) {
+            while (1) {
+                switch (_context4.prev = _context4.next) {
+                    case 0:
+                        connection = CreateConnection(args);
+                        _context4.next = 3;
+                        return connection.connect();
 
-    var connection = CreateConnection(args);
-    connection.connect();
-    return GetSchema(connection).then(function (schema) {
-        var _args$extractRelation = args.extractRelations,
-            extractRelations = _args$extractRelation === undefined ? true : _args$extractRelation,
-            _args$discoverRelatio = args.discoverRelations,
-            discoverRelations = _args$discoverRelatio === undefined ? false : _args$discoverRelatio,
-            _args$aliases = args.aliases,
-            aliases = _args$aliases === undefined ? [] : _args$aliases,
-            _args$ignoreDefaultNa = args.ignoreDefaultNames,
-            ignoreDefaultNames = _args$ignoreDefaultNa === undefined ? false : _args$ignoreDefaultNa,
-            _args$prefix = args.prefix,
-            prefix = _args$prefix === undefined ? 'id_' : _args$prefix,
-            _args$sufix = args.sufix,
-            sufix = _args$sufix === undefined ? '_id' : _args$sufix;
+                    case 3:
+                        return _context4.abrupt('return', GetSchema(connection).then(function () {
+                            var _ref10 = _asyncToGenerator(regeneratorRuntime.mark(function _callee2(schema) {
+                                var _args$extractRelation, extractRelations, _args$discoverRelatio, discoverRelations, _args$aliases, aliases, _args$ignoreDefaultNa, ignoreDefaultNames, _args$prefix, prefix, _args$sufix, sufix, tables, tableNames;
 
-        if (args.discoverRelations) {
-            schema = AddRelationsByFieldNameToSchema(schema, aliases, ignoreDefaultNames, prefix, sufix);
-        }
+                                return regeneratorRuntime.wrap(function _callee2$(_context2) {
+                                    while (1) {
+                                        switch (_context2.prev = _context2.next) {
+                                            case 0:
+                                                _args$extractRelation = args.extractRelations, extractRelations = _args$extractRelation === undefined ? true : _args$extractRelation, _args$discoverRelatio = args.discoverRelations, discoverRelations = _args$discoverRelatio === undefined ? false : _args$discoverRelatio, _args$aliases = args.aliases, aliases = _args$aliases === undefined ? [] : _args$aliases, _args$ignoreDefaultNa = args.ignoreDefaultNames, ignoreDefaultNames = _args$ignoreDefaultNa === undefined ? false : _args$ignoreDefaultNa, _args$prefix = args.prefix, prefix = _args$prefix === undefined ? 'id_' : _args$prefix, _args$sufix = args.sufix, sufix = _args$sufix === undefined ? '_id' : _args$sufix;
 
-        if (args.extractRelations) {
-            return AddRelationsToSchema(connection, schema).then(function (res) {
-                connection.end();
-                var tables = res.tables;
-                var tableNames = Object.keys(tables);
-                tableNames.forEach(function (tableName, index, array) {
-                    CreateFileWithContent(tableName, tables[tableName], args.outputFolder);
-                });
-            });
-        }
+                                                if (args.discoverRelations) {
+                                                    schema = AddRelationsByFieldNameToSchema(schema, aliases, ignoreDefaultNames, prefix, sufix);
+                                                }
 
-        connection.end();
-        var tables = schema.tables;
-        var tableNames = Object.keys(tables);
-        tableNames.forEach(function (tableName, index, array) {
-            CreateFileWithContent(tableName, tables[tableName], args.outputFolder);
-        });
-    }).catch(function (err) {
-        console.error(err);
-        connection.end();
-    });
-};
+                                                if (!args.extractRelations) {
+                                                    _context2.next = 4;
+                                                    break;
+                                                }
 
-var ExportSchemaToFile = function ExportSchemaToFile() {
-    var args = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+                                                return _context2.abrupt('return', AddRelationsToSchema(connection, schema).then(function () {
+                                                    var _ref11 = _asyncToGenerator(regeneratorRuntime.mark(function _callee(res) {
+                                                        var tables, tableNames;
+                                                        return regeneratorRuntime.wrap(function _callee$(_context) {
+                                                            while (1) {
+                                                                switch (_context.prev = _context.next) {
+                                                                    case 0:
+                                                                        _context.next = 2;
+                                                                        return connection.end();
 
-    var connection = CreateConnection(args);
-    connection.connect();
+                                                                    case 2:
+                                                                        tables = res.tables;
+                                                                        tableNames = Object.keys(tables);
 
-    return GetSchema(connection).then(function (schema) {
-        var _args$extractRelation2 = args.extractRelations,
-            extractRelations = _args$extractRelation2 === undefined ? true : _args$extractRelation2,
-            _args$discoverRelatio2 = args.discoverRelations,
-            discoverRelations = _args$discoverRelatio2 === undefined ? false : _args$discoverRelatio2,
-            _args$aliases2 = args.aliases,
-            aliases = _args$aliases2 === undefined ? [] : _args$aliases2,
-            _args$ignoreDefaultNa2 = args.ignoreDefaultNames,
-            ignoreDefaultNames = _args$ignoreDefaultNa2 === undefined ? false : _args$ignoreDefaultNa2,
-            _args$prefix2 = args.prefix,
-            prefix = _args$prefix2 === undefined ? 'id_' : _args$prefix2,
-            _args$sufix2 = args.sufix,
-            sufix = _args$sufix2 === undefined ? '_id' : _args$sufix2;
+                                                                        tableNames.forEach(function (tableName, index, array) {
+                                                                            CreateFileWithContent(tableName, tables[tableName], args.outputFolder);
+                                                                        });
 
-        if (args.discoverRelations) {
-            schema = AddRelationsByFieldNameToSchema(schema, aliases, ignoreDefaultNames, prefix, sufix);
-        }
+                                                                    case 5:
+                                                                    case 'end':
+                                                                        return _context.stop();
+                                                                }
+                                                            }
+                                                        }, _callee, undefined);
+                                                    }));
 
-        if (args.extractRelations) {
-            return AddRelationsToSchema(connection, schema).then(function (res) {
-                connection.end();
-                var tables = res.tables;
-                CreateFileWithContent(args.database + '.schema', tables, args.outputFolder);
-            });
-        }
+                                                    return function (_x13) {
+                                                        return _ref11.apply(this, arguments);
+                                                    };
+                                                }()));
 
-        connection.end();
-        var tables = schema.tables;
-        CreateFileWithContent(args.database + '.schema', tables, args.outputFolder);
-    }).catch(function (err) {
-        console.error(err);
-        connection.end();
-    });
-};
+                                            case 4:
+                                                _context2.next = 6;
+                                                return connection.end();
+
+                                            case 6:
+                                                tables = schema.tables;
+                                                tableNames = Object.keys(tables);
+
+                                                tableNames.forEach(function (tableName, index, array) {
+                                                    CreateFileWithContent(tableName, tables[tableName], args.outputFolder);
+                                                });
+
+                                            case 9:
+                                            case 'end':
+                                                return _context2.stop();
+                                        }
+                                    }
+                                }, _callee2, undefined);
+                            }));
+
+                            return function (_x12) {
+                                return _ref10.apply(this, arguments);
+                            };
+                        }()).catch(function () {
+                            var _ref12 = _asyncToGenerator(regeneratorRuntime.mark(function _callee3(err) {
+                                return regeneratorRuntime.wrap(function _callee3$(_context3) {
+                                    while (1) {
+                                        switch (_context3.prev = _context3.next) {
+                                            case 0:
+                                                console.error(err);
+                                                _context3.next = 3;
+                                                return connection.end();
+
+                                            case 3:
+                                            case 'end':
+                                                return _context3.stop();
+                                        }
+                                    }
+                                }, _callee3, undefined);
+                            }));
+
+                            return function (_x14) {
+                                return _ref12.apply(this, arguments);
+                            };
+                        }()));
+
+                    case 4:
+                    case 'end':
+                        return _context4.stop();
+                }
+            }
+        }, _callee4, undefined);
+    }));
+
+    return function ExportSchemaToFiles() {
+        return _ref9.apply(this, arguments);
+    };
+}();
+
+var ExportSchemaToFile = function () {
+    var _ref13 = _asyncToGenerator(regeneratorRuntime.mark(function _callee8() {
+        var args = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+        var connection;
+        return regeneratorRuntime.wrap(function _callee8$(_context8) {
+            while (1) {
+                switch (_context8.prev = _context8.next) {
+                    case 0:
+                        connection = CreateConnection(args);
+                        _context8.next = 3;
+                        return connection.connect();
+
+                    case 3:
+                        return _context8.abrupt('return', GetSchema(connection).then(function () {
+                            var _ref14 = _asyncToGenerator(regeneratorRuntime.mark(function _callee6(schema) {
+                                var _args$extractRelation2, extractRelations, _args$discoverRelatio2, discoverRelations, _args$aliases2, aliases, _args$ignoreDefaultNa2, ignoreDefaultNames, _args$prefix2, prefix, _args$sufix2, sufix, tables;
+
+                                return regeneratorRuntime.wrap(function _callee6$(_context6) {
+                                    while (1) {
+                                        switch (_context6.prev = _context6.next) {
+                                            case 0:
+                                                _args$extractRelation2 = args.extractRelations, extractRelations = _args$extractRelation2 === undefined ? true : _args$extractRelation2, _args$discoverRelatio2 = args.discoverRelations, discoverRelations = _args$discoverRelatio2 === undefined ? false : _args$discoverRelatio2, _args$aliases2 = args.aliases, aliases = _args$aliases2 === undefined ? [] : _args$aliases2, _args$ignoreDefaultNa2 = args.ignoreDefaultNames, ignoreDefaultNames = _args$ignoreDefaultNa2 === undefined ? false : _args$ignoreDefaultNa2, _args$prefix2 = args.prefix, prefix = _args$prefix2 === undefined ? 'id_' : _args$prefix2, _args$sufix2 = args.sufix, sufix = _args$sufix2 === undefined ? '_id' : _args$sufix2;
+
+                                                if (args.discoverRelations) {
+                                                    schema = AddRelationsByFieldNameToSchema(schema, aliases, ignoreDefaultNames, prefix, sufix);
+                                                }
+
+                                                if (!args.extractRelations) {
+                                                    _context6.next = 4;
+                                                    break;
+                                                }
+
+                                                return _context6.abrupt('return', AddRelationsToSchema(connection, schema).then(function () {
+                                                    var _ref15 = _asyncToGenerator(regeneratorRuntime.mark(function _callee5(res) {
+                                                        var tables;
+                                                        return regeneratorRuntime.wrap(function _callee5$(_context5) {
+                                                            while (1) {
+                                                                switch (_context5.prev = _context5.next) {
+                                                                    case 0:
+                                                                        _context5.next = 2;
+                                                                        return connection.end();
+
+                                                                    case 2:
+                                                                        tables = res.tables;
+
+                                                                        CreateFileWithContent(args.database + '.schema', tables, args.outputFolder);
+
+                                                                    case 4:
+                                                                    case 'end':
+                                                                        return _context5.stop();
+                                                                }
+                                                            }
+                                                        }, _callee5, undefined);
+                                                    }));
+
+                                                    return function (_x17) {
+                                                        return _ref15.apply(this, arguments);
+                                                    };
+                                                }()));
+
+                                            case 4:
+                                                _context6.next = 6;
+                                                return connection.end();
+
+                                            case 6:
+                                                tables = schema.tables;
+
+                                                CreateFileWithContent(args.database + '.schema', tables, args.outputFolder);
+
+                                            case 8:
+                                            case 'end':
+                                                return _context6.stop();
+                                        }
+                                    }
+                                }, _callee6, undefined);
+                            }));
+
+                            return function (_x16) {
+                                return _ref14.apply(this, arguments);
+                            };
+                        }()).catch(function () {
+                            var _ref16 = _asyncToGenerator(regeneratorRuntime.mark(function _callee7(err) {
+                                return regeneratorRuntime.wrap(function _callee7$(_context7) {
+                                    while (1) {
+                                        switch (_context7.prev = _context7.next) {
+                                            case 0:
+                                                console.error(err);
+                                                _context7.next = 3;
+                                                return connection.end();
+
+                                            case 3:
+                                            case 'end':
+                                                return _context7.stop();
+                                        }
+                                    }
+                                }, _callee7, undefined);
+                            }));
+
+                            return function (_x18) {
+                                return _ref16.apply(this, arguments);
+                            };
+                        }()));
+
+                    case 4:
+                    case 'end':
+                        return _context8.stop();
+                }
+            }
+        }, _callee8, undefined);
+    }));
+
+    return function ExportSchemaToFile() {
+        return _ref13.apply(this, arguments);
+    };
+}();
 
 /**
  * Look for the relationships where a table points to other tables.
