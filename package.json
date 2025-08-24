@@ -1,6 +1,6 @@
 {
   "name": "mysql-json-schema",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Export MySql schemas. Relations included.",
   "main": "index.js",
   "author": "German Llorente <llorentegerman@gmail.com>",
