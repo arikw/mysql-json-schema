@@ -3,15 +3,11 @@
   "version": "1.3.0",
   "description": "Export MySql schemas. Relations included.",
   "main": "index.js",
-  "author": "German Llorente <llorentegerman@gmail.com>",
+  "author": "Arik W <https://github.com/arikw>",
   "license": "MIT",
-  "scripts": {
-    "test": "babel-node spec/run.js",
-    "compile": "./node_modules/.bin/babel ./src -d ./dist"
-  },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/llorentegerman/mysql-json-schema"
+    "url": "git+https://github.com/arikw/mysql-json-schema"
   },
   "keywords": [
     "mysql",
@@ -21,9 +17,9 @@
     "json schema"
   ],
   "bugs": {
-    "url": "https://github.com/llorentegerman/mysql-json-schema/issues"
+    "url": "https://github.com/arikw/mysql-json-schema/issues"
   },
-  "homepage": "https://github.com/llorentegerman/mysql-json-schema#readme",
+  "homepage": "https://github.com/arikw/mysql-json-schema#readme",
   "dependencies": {
     "babel-cli": "^6.24.1",
     "babel-preset-es2015": "^6.24.1",

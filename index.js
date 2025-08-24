@@ -1,1 +1,1 @@
-module.exports = require('./dist/mysql');
+module.exports = require('./src/mysql');
