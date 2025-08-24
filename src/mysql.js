@@ -434,7 +434,7 @@ const GetRelationsToTableByFieldNames = (tableName, schema, aliases = [], ignore
     return relations;
 }
 
-module.exports = {
+export {
     CreateConnection,
     CreateConnectionAsync,
     GetSchema, // Returns schema without relations
