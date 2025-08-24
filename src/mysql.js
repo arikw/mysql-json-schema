@@ -33,37 +33,23 @@ const GetSchema = (connection) => {
 const GetTableList = (connection) => {
     const tables = [];
     const sqlTables = ` SELECT * FROM information_schema.tables where table_schema = '${connection.config.database}' `;
-    return (
-        new Promise(function (resolve, reject) {
-            connection.query(sqlTables, function (err, respTables) {
-                if (err) {
-                    reject(err);
-                }
+    return connection.query(sqlTables).then(([respTables]) => {
                 respTables.forEach((value, index, array) => {
                     tables.push(value.TABLE_NAME);
                 });
-                resolve(tables);
+                return tables;
             });
-        })
-    );
 }
 
 const GetFieldsFromTable = (connection, table) => {
     const fields = [];
-    return (
-        new Promise(function (resolve, reject) {
-            connection.query(`desc ${table}`, function (err, rows) {
-                if (err) {
-                    reject(err);
-                }
+    return connection.query(`desc ${table}`).then(([rows]) => {
                 rows.forEach((value, index, array) => {
                     const { Field, Type, Null, Key, Default, Extra } = value; // Extract info
                     fields.push({ Field, Type, Null: (Null === 'YES'), Key, Default, Extra });
                 });
-                resolve(fields);
+                return fields;
             });
-        })
-    );
 }
 
 const CreateConnection = (args = {}) => {
@@ -74,16 +60,7 @@ const CreateConnection = (args = {}) => {
 
 const CreateConnectionAsync = (args = {}) => {
     const connection = CreateConnection(args);
-    return (
-        new Promise(function (resolve, reject) {
-            connection.connect(function (err) {
-                if (err) {
-                    return reject(err);
-                }
-                resolve(connection);
-            });
-        })
-    );
+    return connection.connect();
 }
 
 const AddRelationsToSchema = (connection, schema) => {
@@ -147,20 +124,13 @@ const GetRelationsFromTable = (connection, table) => {
      and (TABLE_NAME = '${table}');` // and (REFERENCED_TABLE_NAME = '${table}');`
 
     const relations = [];
-    return (
-        new Promise(function (resolve, reject) {
-            connection.query(sqlRelaciones, function (err, relationsResp) {
-                if (err) {
-                    reject(err);
-                }
+    return connection.query(sqlRelaciones).then(([relationsResp]) => {
                 relationsResp.forEach((value, index, array) => {
                     const { db, t1, t1Field, db2, t2, t2Field } = value; // Extract info
                     relations.push({ localField: t1Field, foreignTable: t2, foreignField: t2Field });
                 });
-                resolve(relations);
+                return relations;
             });
-        })
-    );
 };
 
 const GetRelationsToTable = (connection, table) => {
@@ -178,20 +148,13 @@ const GetRelationsToTable = (connection, table) => {
      and (REFERENCED_TABLE_NAME = '${table}');`
 
     const relations = [];
-    return (
-        new Promise(function (resolve, reject) {
-            connection.query(sqlRelaciones, function (err, relationsResp) {
-                if (err) {
-                    reject(err);
-                }
+    return connection.query(sqlRelaciones).then(([relationsResp]) => {
                 relationsResp.forEach((value, index, array) => {
                     const { db, t1, t1Field, db2, t2, t2Field } = value; // Extract info
                     relations.push({ localField: t2Field, foreignTable: t1, foreignField: t1Field });
                 });
-                resolve(relations);
+                return relations;
             });
-        })
-    );
 }
 
 const CreateFileWithContent = (fileName, content, outputFolder) => {
@@ -220,11 +183,11 @@ const GetSchemaWithRelationsByFieldNames = (connection, aliases = [], ignoreDefa
         });
 }
 
-const ExportSchemaToFiles = (args = {}) => {
+const ExportSchemaToFiles = async (args = {}) => {
     const connection = CreateConnection(args);
-    connection.connect();
+    await connection.connect();
     return GetSchema(connection)
-        .then((schema) => {
+        .then(async (schema) => {
             const { extractRelations = true, discoverRelations = false, aliases = [], ignoreDefaultNames = false, prefix = 'id_', sufix = '_id' } = args;
             if (args.discoverRelations) {
                 schema = AddRelationsByFieldNameToSchema(schema, aliases, ignoreDefaultNames, prefix, sufix);
@@ -232,8 +195,8 @@ const ExportSchemaToFiles = (args = {}) => {
 
             if (args.extractRelations) {
                 return AddRelationsToSchema(connection, schema)
-                    .then(res => {
-                        connection.end();
+                    .then(async (res) => {
+                        await connection.end();
                         const tables = res.tables;
                         const tableNames = Object.keys(tables);
                         tableNames.forEach((tableName, index, array) => {
@@ -242,25 +205,25 @@ const ExportSchemaToFiles = (args = {}) => {
                     })
             }
 
-            connection.end();
+            await connection.end();
             const tables = schema.tables;
             const tableNames = Object.keys(tables);
             tableNames.forEach((tableName, index, array) => {
                 CreateFileWithContent(tableName, tables[tableName], args.outputFolder);
             });
         })
-        .catch((err) => {
+        .catch(async (err) => {
             console.error(err);
-            connection.end();
+            await connection.end();
         });
 }
 
-const ExportSchemaToFile = (args = {}) => {
+const ExportSchemaToFile = async (args = {}) => {
     const connection = CreateConnection(args);
-    connection.connect();
+    await connection.connect();
 
     return GetSchema(connection)
-        .then((schema) => {
+        .then(async (schema) => {
             const { extractRelations = true, discoverRelations = false, aliases = [], ignoreDefaultNames = false, prefix = 'id_', sufix = '_id' } = args;
             if (args.discoverRelations) {
                 schema = AddRelationsByFieldNameToSchema(schema, aliases, ignoreDefaultNames, prefix, sufix);
@@ -268,20 +231,20 @@ const ExportSchemaToFile = (args = {}) => {
 
             if (args.extractRelations) {
                 return AddRelationsToSchema(connection, schema)
-                    .then(res => {
-                        connection.end();
+                    .then(async (res) => {
+                        await connection.end();
                         const tables = res.tables;
                         CreateFileWithContent(`${args.database}.schema`, tables, args.outputFolder);
                     })
             }
 
-            connection.end();
+            await connection.end();
             const tables = schema.tables;
             CreateFileWithContent(`${args.database}.schema`, tables, args.outputFolder);
         })
-        .catch((err) => {
+        .catch(async (err) => {
             console.error(err);
-            connection.end();
+            await connection.end();
         });
 }
 
@@ -486,7 +449,3 @@ module.exports = {
     ExportSchemaToFiles, // Creates an schema and export that to outputPath on separate files
     ExportSchemaToFile, // Creates an schema and export that to outputPath on a file
 };
-
-
-
-
